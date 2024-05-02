@@ -1,0 +1,5 @@
+Cell compartments
+
+  ---------- ----------
+  Ribosome   Lysosome
+  ---------- ----------

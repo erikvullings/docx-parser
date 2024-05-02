@@ -1,0 +1,11 @@
+[package]
+name = "doc-parser"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+docx-rust = "0.1.7"
+# docx-rust = { git="https://github.com/erikvullings/docx-rs.git" }
+
+
+
