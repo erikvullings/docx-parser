@@ -3,7 +3,6 @@
         "nl"
     ],
     "spellright.documentTypes": [
-        "latex",
-        "plaintext"
+        "latex"
     ]
 }

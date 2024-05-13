@@ -1,29 +1,23 @@
 ## Some nested lists
 
-1.  one
+1. one
 
-2.  two
+2. two
 
-    a.  a
+    a. a
 
-    b.  b
+    b. b
 
--   one
+- one
 
--   two
+- two
 
-    -   three
+    - three
 
-        -   four
+        - four
 
-        ```{=html}
-        <!-- -->
-        ```
-        -   Sub paragraph
+          Sub paragraph
 
--   Same list
+- Same list
 
-```{=html}
-<!-- -->
-```
--   Different list adjacent to the one above.
+- Different list adjacent to the one above.
