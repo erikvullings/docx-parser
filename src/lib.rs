@@ -1,5 +1,8 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::env;
+use std::fs::{create_dir_all, File};
+use std::io::{self, Write};
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use docx_rust::document::BodyContent::{Paragraph, Sdt, SectionProperty, Table, TableCell};
@@ -8,6 +11,31 @@ use docx_rust::formatting::{NumberFormat, ParagraphProperty};
 use docx_rust::media::MediaType;
 use docx_rust::styles::StyleType;
 use docx_rust::DocxFile;
+
+fn save_image_to_file(path: &str, image_data: &[u8]) -> io::Result<()> {
+    // Get the current working directory
+    let current_dir = env::current_dir()?;
+
+    // Concatenate the file path to the current working directory
+    let full_path = current_dir.join(path);
+
+    // Create the directory if it doesn't exist
+    if let Some(parent) = full_path.parent() {
+        create_dir_all(parent)?;
+    }
+
+    // Convert the path to a PathBuf
+    let mut file_path = PathBuf::new();
+    file_path.push(full_path);
+
+    // Create a file at the specified path
+    let mut file = File::create(&file_path)?;
+
+    // Write the image data to the file
+    file.write_all(image_data)?;
+
+    Ok(())
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BlockStyle {
@@ -446,29 +474,69 @@ impl MarkdownDocument {
                                     }
                                     None => None,
                                 };
-                                if let Some(text) = run.content.into_iter().find_map(
-                                    |run_content| match run_content {
-                                        RunContent::Text(text) => Some(text.text.to_string()),
-                                        _ => None,
-                                    },
-                                ) {
-                                    let could_extend_text = if let Some(prev_block) =
-                                        markdown_paragraph.blocks.last_mut()
-                                    {
-                                        if prev_block.style == block_style {
-                                            prev_block.text.push_str(&text);
-                                            true
-                                        } else {
-                                            false
+
+                                let is_same_style =
+                                    |style: &Option<BlockStyle>| style == &block_style;
+
+                                for run_content in run.content {
+                                    match run_content {
+                                        RunContent::Text(text) => {
+                                            let text = text.text.to_string();
+                                            let could_extend_text = if let Some(prev_block) =
+                                                markdown_paragraph.blocks.last_mut()
+                                            {
+                                                if is_same_style(&prev_block.style) {
+                                                    prev_block.text.push_str(&text);
+                                                    true
+                                                } else {
+                                                    false
+                                                }
+                                            } else {
+                                                false
+                                            };
+                                            if !could_extend_text {
+                                                let text_block =
+                                                    TextBlock::new(text, block_style.clone());
+                                                markdown_paragraph.blocks.push(text_block);
+                                            }
                                         }
-                                    } else {
-                                        false
-                                    };
-                                    if !could_extend_text {
-                                        let text_block = TextBlock::new(text, block_style);
-                                        markdown_paragraph.blocks.push(text_block);
+                                        RunContent::Drawing(drawing) => {
+                                            if let Some(inline) = drawing.inline {
+                                                if let Some(graphic) = inline.graphic {
+                                                    let id = graphic
+                                                        .data
+                                                        .pic
+                                                        .fill
+                                                        .blip
+                                                        .embed
+                                                        .to_string();
+                                                    if let Some(relationships) = &docx.document_rels
+                                                    {
+                                                        if let Some(target) =
+                                                            relationships.get_target(&id)
+                                                        {
+                                                            let descr =
+                                                                match inline.doc_property.descr {
+                                                                    Some(descr) => descr.into(),
+                                                                    None => "".to_string(),
+                                                                };
+                                                            let img_text = format!(
+                                                                "![{}](./{})",
+                                                                descr, target
+                                                            );
+                                                            let text_block =
+                                                                TextBlock::new(img_text, None);
+                                                            markdown_paragraph
+                                                                .blocks
+                                                                .push(text_block);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        _ => (),
                                     }
-                                };
+                                }
                             }
                             ParagraphContent::Link(link) => {
                                 println!("  Link: {:?}", link);
@@ -498,7 +566,7 @@ impl MarkdownDocument {
         markdown_doc
     }
 
-    pub fn to_markdown(&self) -> String {
+    pub fn to_markdown(&self, export_images: bool) -> String {
         let mut markdown = String::new();
 
         if let Some(title) = &self.title {
@@ -511,6 +579,15 @@ impl MarkdownDocument {
             markdown += &paragraph.to_markdown(&self.styles, &mut numberings, &self);
             if index != self.paragraphs.len() - 1 {
                 markdown += "\n";
+            }
+        }
+
+        if export_images {
+            for (image, data) in &self.images {
+                match save_image_to_file(image, data) {
+                    Ok(_) => (),
+                    Err(err) => eprintln!("{err}"),
+                };
             }
         }
 
@@ -529,7 +606,7 @@ mod tests {
     fn test_headers() {
         let markdown_pandoc = fs::read_to_string("./test/headers.md").unwrap();
         let markdown_doc = MarkdownDocument::from_file("./test/headers.docx");
-        let markdown = markdown_doc.to_markdown();
+        let markdown = markdown_doc.to_markdown(false);
         assert_eq!(markdown_pandoc, markdown);
     }
 
@@ -537,7 +614,7 @@ mod tests {
     fn test_bullets() {
         let markdown_pandoc = fs::read_to_string("./test/lists.md").unwrap();
         let markdown_doc = MarkdownDocument::from_file("./test/lists.docx");
-        let markdown = markdown_doc.to_markdown();
+        let markdown = markdown_doc.to_markdown(false);
         assert_eq!(markdown_pandoc, markdown);
     }
 
@@ -545,7 +622,7 @@ mod tests {
     fn test_images() {
         let markdown_pandoc = fs::read_to_string("./test/image.md").unwrap();
         let markdown_doc = MarkdownDocument::from_file("./test/image.docx");
-        let markdown = markdown_doc.to_markdown();
+        let markdown = markdown_doc.to_markdown(false);
         assert_eq!(markdown_pandoc, markdown);
     }
 
