@@ -1,10 +1,10 @@
 No width given:
 
-![testimg](./media/rId20.jpg)
+<a name="fig:testimg"></a>![testimg](./media/rId20.jpg)
 
 With height 10cm:
 
-![2testimg](./media/rId20.jpg)
+<a name="fig:2testimg"></a>![2testimg](./media/rId20.jpg)
 
 With width 6cm:
 

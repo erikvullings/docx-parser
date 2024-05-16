@@ -165,14 +165,36 @@ impl<'a> From<&'a ParagraphProperty<'a>> for ParagraphStyle {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum TextType {
+    Text,
+    Image,
+    Link,
+    Code,
+    Quote,
+    List,
+    Table,
+    Header,
+    HorizontalRule,
+    BlockQuote,
+    CodeBlock,
+    HeaderBlock,
+    BookmarkLink,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct TextBlock {
+    pub text_type: TextType,
     pub style: Option<BlockStyle>,
     pub text: String,
 }
 
 impl TextBlock {
-    pub fn new(text: String, style: Option<BlockStyle>) -> Self {
-        TextBlock { style, text }
+    pub fn new(text: String, style: Option<BlockStyle>, text_type: TextType) -> Self {
+        TextBlock {
+            style,
+            text,
+            text_type,
+        }
     }
 
     pub fn to_markdown(&self, paragraph_style: &ParagraphStyle) -> String {
@@ -482,21 +504,21 @@ impl MarkdownDocument {
                                     match run_content {
                                         RunContent::Text(text) => {
                                             let text = text.text.to_string();
-                                            let could_extend_text = if let Some(prev_block) =
+                                            let mut could_extend_text = false;
+                                            if let Some(prev_block) =
                                                 markdown_paragraph.blocks.last_mut()
                                             {
                                                 if is_same_style(&prev_block.style) {
                                                     prev_block.text.push_str(&text);
-                                                    true
-                                                } else {
-                                                    false
+                                                    could_extend_text = true
                                                 }
-                                            } else {
-                                                false
                                             };
                                             if !could_extend_text {
-                                                let text_block =
-                                                    TextBlock::new(text, block_style.clone());
+                                                let text_block = TextBlock::new(
+                                                    text,
+                                                    block_style.clone(),
+                                                    TextType::Text,
+                                                );
                                                 markdown_paragraph.blocks.push(text_block);
                                             }
                                         }
@@ -524,8 +546,11 @@ impl MarkdownDocument {
                                                                 "![{}](./{})",
                                                                 descr, target
                                                             );
-                                                            let text_block =
-                                                                TextBlock::new(img_text, None);
+                                                            let text_block = TextBlock::new(
+                                                                img_text,
+                                                                None,
+                                                                TextType::Image,
+                                                            );
                                                             markdown_paragraph
                                                                 .blocks
                                                                 .push(text_block);
@@ -539,7 +564,41 @@ impl MarkdownDocument {
                                 }
                             }
                             ParagraphContent::Link(link) => {
-                                println!("  Link: {:?}", link);
+                                let descr = link.content.content.first();
+                                let target = match link.anchor {
+                                    Some(anchor) => Some(format!("#{}", anchor.to_string())),
+                                    None => match link.id {
+                                        Some(id) => match &docx.document_rels {
+                                            Some(doc_relationships) => doc_relationships
+                                                .relationships
+                                                .iter()
+                                                .find_map(|r| {
+                                                    if r.id == id {
+                                                        Some(r.target.to_string())
+                                                    } else {
+                                                        None
+                                                    }
+                                                }),
+                                            None => None,
+                                        },
+                                        None => None,
+                                    },
+                                };
+                                if let (Some(RunContent::Text(descr)), Some(target)) =
+                                    (descr, target)
+                                {
+                                    let link = format!("[{}]({})", descr.text, target);
+                                    let text_block = TextBlock::new(link, None, TextType::Link);
+                                    markdown_paragraph.blocks.push(text_block);
+                                }
+                            }
+                            ParagraphContent::BookmarkStart(bookmark_start) => {
+                                if let Some(name) = bookmark_start.name {
+                                    let bookmark = format!(r#"<a name="{}"></a>"#, name);
+                                    let text_block =
+                                        TextBlock::new(bookmark, None, TextType::BookmarkLink);
+                                    markdown_paragraph.blocks.push(text_block);
+                                }
                             }
                             _ => (),
                         }
@@ -622,6 +681,14 @@ mod tests {
     fn test_images() {
         let markdown_pandoc = fs::read_to_string("./test/image.md").unwrap();
         let markdown_doc = MarkdownDocument::from_file("./test/image.docx");
+        let markdown = markdown_doc.to_markdown(false);
+        assert_eq!(markdown_pandoc, markdown);
+    }
+
+    #[test]
+    fn test_links() {
+        let markdown_pandoc = fs::read_to_string("./test/links.md").unwrap();
+        let markdown_doc = MarkdownDocument::from_file("./test/links.docx");
         let markdown = markdown_doc.to_markdown(false);
         assert_eq!(markdown_pandoc, markdown);
     }
