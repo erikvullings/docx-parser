@@ -1,4 +1,7 @@
-pub fn max_lengths_per_column(table_with_simple_cells: &Vec<(bool, Vec<String>)>) -> Vec<usize> {
+pub fn max_lengths_per_column(
+    table_with_simple_cells: &Vec<(bool, Vec<String>)>,
+    min_width: usize,
+) -> Vec<usize> {
     // Check if the table is empty
     if table_with_simple_cells.is_empty() {
         return vec![];
@@ -8,7 +11,7 @@ pub fn max_lengths_per_column(table_with_simple_cells: &Vec<(bool, Vec<String>)>
     let num_columns = table_with_simple_cells[0].1.len();
 
     // Initialize a vector to store the maximum length of each column
-    let mut max_lengths = vec![0; num_columns];
+    let mut max_lengths = vec![min_width; num_columns];
 
     // Iterate over each row
     for (_, row) in table_with_simple_cells {

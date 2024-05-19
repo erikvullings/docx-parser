@@ -695,7 +695,7 @@ impl MarkdownDocument {
                             (is_header.clone(), row_content.clone())
                         })
                         .collect();
-                    let column_lengths = max_lengths_per_column(&table_with_simple_cells);
+                    let column_lengths = max_lengths_per_column(&table_with_simple_cells, 3);
                     let divider = &table_row_to_markdown(
                         &column_lengths,
                         &column_lengths.iter().map(|i| "-".repeat(*i)).collect(),
@@ -797,6 +797,32 @@ mod tests {
     fn test_tables() {
         let markdown_pandoc = fs::read_to_string("./test/tables.md").unwrap();
         let markdown_doc = MarkdownDocument::from_file("./test/tables.docx");
+        let markdown = markdown_doc.to_markdown(false);
+        assert_eq!(markdown_pandoc, markdown);
+    }
+
+    #[test]
+    fn test_one_row_table() {
+        let markdown_pandoc = fs::read_to_string("./test/table_one_row.md").unwrap();
+        let markdown_doc = MarkdownDocument::from_file("./test/table_one_row.docx");
+        let markdown = markdown_doc.to_markdown(false);
+        assert_eq!(markdown_pandoc, markdown);
+    }
+
+    #[test]
+    fn test_table_with_list_cell() {
+        let markdown_pandoc = fs::read_to_string("./test/table_with_list_cell.md").unwrap();
+        let markdown_doc = MarkdownDocument::from_file("./test/table_with_list_cell.docx");
+        let markdown = markdown_doc.to_markdown(false);
+        assert_eq!(markdown_pandoc, markdown);
+    }
+
+    #[test]
+    fn test_tables_separated_with_rawblock() {
+        let markdown_pandoc =
+            fs::read_to_string("./test/tables_separated_with_rawblock.md").unwrap();
+        let markdown_doc =
+            MarkdownDocument::from_file("./test/tables_separated_with_rawblock.docx");
         let markdown = markdown_doc.to_markdown(false);
         assert_eq!(markdown_pandoc, markdown);
     }
