@@ -7,39 +7,47 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'doc-parser'",
+            "name": "Debug executable 'docx-parser'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=doc-parser",
-                    "--package=doc-parser"
+                    "--bin=docx-parser",
+                    "--package=docx-parser"
                 ],
                 "filter": {
-                    "name": "doc-parser",
+                    "name": "docx-parser",
                     "kind": "bin"
                 }
             },
-            "args": [],
-            "cwd": "${workspaceFolder}"
+            "args": [
+                "-i ./test/tables.docx"
+            ],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "RUST_BACKTRACE": "0"
+            }
         },
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'doc-parser'",
+            "name": "Debug unit tests in executable 'docx-parser'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=doc-parser",
-                    "--package=doc-parser"
+                    "--bin=docx-parser",
+                    "--package=docx-parser"
                 ],
                 "filter": {
-                    "name": "doc-parser",
+                    "name": "docx-parser",
                     "kind": "bin"
                 }
             },
             "args": [],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "RUST_BACKTRACE": "0"
+            }
         }
     ]
 }

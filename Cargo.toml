@@ -4,5 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+clap = { version = "4.5.4", features = ["derive"] }
 # docx-rust = "0.1.7"
 docx-rust = { git="https://github.com/erikvullings/docx-rs.git" }
+serde = { version = "1.0.202", features = ["derive"] }
+serde_json = "1.0.117"

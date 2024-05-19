@@ -1,11 +1,18 @@
-mod utils;
+//! A library to parse Docx files into a simpler format, useful for exporting it as markdown or JSON.
+//!
+//! # Examples
+//!
+//! ```
+//! use docx_parser::MarkdownDocument;
+//!
+//! let markdown_doc = MarkdownDocument::from_file("./test/tables.docx");
+//! let markdown = markdown_doc.to_markdown(true);
+//! let json = markdown_doc.to_json();
+//! println!("\n\n{}", markdown);
+//! println!("\n\n{}", json);
+//! ```
 
-use std::collections::HashMap;
-use std::env;
-use std::fs::{create_dir_all, File};
-use std::io::{self, Write};
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
+mod utils;
 
 use docx_rust::document::BodyContent::{Paragraph, Sdt, SectionProperty, Table, TableCell};
 use docx_rust::document::{ParagraphContent, RunContent, TableCellContent, TableRowContent};
@@ -13,6 +20,14 @@ use docx_rust::formatting::{NumberFormat, OnOffOnlyType, ParagraphProperty};
 use docx_rust::media::MediaType;
 use docx_rust::styles::StyleType;
 use docx_rust::DocxFile;
+use serde::Serialize;
+use serde_json;
+use std::collections::HashMap;
+use std::env;
+use std::fs::{create_dir_all, File};
+use std::io::{self, Write};
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use utils::{max_lengths_per_column, table_row_to_markdown};
 
 fn save_image_to_file(path: &str, image_data: &[u8]) -> io::Result<()> {
@@ -40,7 +55,7 @@ fn save_image_to_file(path: &str, image_data: &[u8]) -> io::Result<()> {
     Ok(())
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 pub struct BlockStyle {
     pub bold: bool,
     pub italics: bool,
@@ -72,7 +87,7 @@ impl BlockStyle {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MarkdownNumbering {
     pub id: Option<isize>,
     pub indent_level: Option<isize>,
@@ -80,7 +95,7 @@ pub struct MarkdownNumbering {
     pub level_text: Option<String>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct ParagraphStyle {
     pub style_id: Option<String>,
     pub outline_lvl: Option<isize>,
@@ -167,7 +182,7 @@ impl<'a> From<&'a ParagraphProperty<'a>> for ParagraphStyle {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize)]
 pub enum TextType {
     Text,
     Image,
@@ -184,7 +199,7 @@ pub enum TextType {
     BookmarkLink,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize)]
 pub struct TextBlock {
     pub text_type: TextType,
     pub style: Option<BlockStyle>,
@@ -236,7 +251,7 @@ impl TextBlock {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct MarkdownParagraph {
     pub style: Option<ParagraphStyle>,
     pub blocks: Vec<TextBlock>,
@@ -446,7 +461,7 @@ impl MarkdownParagraph {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct MarkdownDocument {
     pub creator: Option<String>,
     pub last_editor: Option<String>,
@@ -591,18 +606,18 @@ impl MarkdownDocument {
                     }
                 }
                 Table(table) => {
-                    let rows_columns: MarkdownTableType = table
+                    let rows_columns: MarkdownTable = table
                         .rows
                         .iter()
                         .map(|row| {
-                            let is_table_header = match &row.property.table_header {
+                            let is_header = match &row.property.table_header {
                                 Some(table_header) => match table_header.value {
                                     Some(OnOffOnlyType::On) => true,
                                     _ => false,
                                 },
                                 None => false,
                             };
-                            let converted_row: Vec<Vec<MarkdownParagraph>> = row
+                            let cells: Vec<Vec<MarkdownParagraph>> = row
                                 .cells
                                 .iter()
                                 .filter_map(|row_content| match row_content {
@@ -627,7 +642,7 @@ impl MarkdownDocument {
                                     _ => None,
                                 })
                                 .collect();
-                            (is_table_header, converted_row)
+                            MarkdownTableRow { is_header, cells }
                         })
                         .collect();
 
@@ -650,6 +665,11 @@ impl MarkdownDocument {
         markdown_doc
     }
 
+    pub fn to_json(&self) -> String {
+        let json = serde_json::to_string(self).expect("Serialization failed");
+        json
+    }
+
     pub fn to_markdown(&self, export_images: bool) -> String {
         let mut markdown = String::new();
 
@@ -668,8 +688,8 @@ impl MarkdownDocument {
                 MarkdownContent::Table(table) => {
                     let table_with_simple_cells: Vec<(bool, Vec<String>)> = table
                         .iter()
-                        .map(|(is_header, row)| {
-                            let row_content: &Vec<String> = &row
+                        .map(|MarkdownTableRow { is_header, cells }| {
+                            let row_content: &Vec<String> = &cells
                                 .iter()
                                 .map(|cell| {
                                     let cell_content = &cell.iter().enumerate().fold(
@@ -746,13 +766,21 @@ impl MarkdownDocument {
     }
 }
 
-pub type MarkdownTableType = Vec<(bool, Vec<Vec<MarkdownParagraph>>)>;
-
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum MarkdownContent {
     Paragraph(MarkdownParagraph),
-    Table(MarkdownTableType),
+    Table(MarkdownTable),
 }
+
+pub type MarkdownTable = Vec<MarkdownTableRow>;
+
+#[derive(Debug, Serialize)]
+pub struct MarkdownTableRow {
+    is_header: bool,
+    cells: Vec<MarkdownTableCell>,
+}
+
+pub type MarkdownTableCell = Vec<MarkdownParagraph>;
 
 #[cfg(test)]
 mod tests {
