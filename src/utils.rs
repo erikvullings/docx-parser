@@ -1,3 +1,14 @@
+use base64::prelude::*;
+use serde::ser::SerializeMap;
+use serde::Serializer;
+use std::{
+    collections::HashMap,
+    env,
+    fs::{create_dir_all, File},
+    io::{self, Write},
+    path::PathBuf,
+};
+
 pub fn max_lengths_per_column(
     table_with_simple_cells: &Vec<(bool, Vec<String>)>,
     min_width: usize,
@@ -78,4 +89,62 @@ fn test_table_row_to_markdown() {
         table_row_in_markdown,
         "| This is    | This is a       | This is a test       |\n",
     );
+}
+
+pub fn save_image_to_file(path: &str, image_data: &[u8]) -> io::Result<()> {
+    // Get the current working directory
+    let current_dir = env::current_dir()?;
+
+    // Concatenate the file path to the current working directory
+    let full_path = current_dir.join(path);
+
+    // Create the directory if it doesn't exist
+    if let Some(parent) = full_path.parent() {
+        create_dir_all(parent)?;
+    }
+
+    // Convert the path to a PathBuf
+    let mut file_path = PathBuf::new();
+    file_path.push(full_path);
+
+    // Create a file at the specified path
+    let mut file = File::create(&file_path)?;
+
+    // Write the image data to the file
+    file.write_all(image_data)?;
+
+    Ok(())
+}
+
+fn get_mime_type(filename: &str) -> Option<&'static str> {
+    let extension = filename.split('.').last()?;
+    match extension.to_lowercase().as_str() {
+        "png" => Some("image/png"),
+        "jpg" | "jpeg" => Some("image/jpeg"),
+        "gif" => Some("image/gif"),
+        "bmp" => Some("image/bmp"),
+        "tiff" => Some("image/tiff"),
+        _ => None,
+    }
+}
+
+pub fn serialize_images<S>(
+    images: &HashMap<String, Vec<u8>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut map = serializer.serialize_map(Some(images.len()))?;
+    for (key, value) in images {
+        let encoded = BASE64_STANDARD.encode(value);
+
+        let prefix = match get_mime_type(key) {
+            Some(mime_type) => format!("data:{};base64,", mime_type),
+            None => "data:application/octet-stream;base64,".to_string(),
+        };
+        let base64_string = format!("{}{}", prefix, encoded);
+        map.serialize_entry(key, &base64_string)?;
+    }
+    map.end()
 }

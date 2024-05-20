@@ -7,7 +7,7 @@
 //!
 //! let markdown_doc = MarkdownDocument::from_file("./test/tables.docx");
 //! let markdown = markdown_doc.to_markdown(true);
-//! let json = markdown_doc.to_json();
+//! let json = markdown_doc.to_json(true);
 //! println!("\n\n{}", markdown);
 //! println!("\n\n{}", json);
 //! ```
@@ -23,44 +23,22 @@ use docx_rust::DocxFile;
 use serde::Serialize;
 use serde_json;
 use std::collections::HashMap;
-use std::env;
-use std::fs::{create_dir_all, File};
-use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::str::FromStr;
-use utils::{max_lengths_per_column, table_row_to_markdown};
-
-fn save_image_to_file(path: &str, image_data: &[u8]) -> io::Result<()> {
-    // Get the current working directory
-    let current_dir = env::current_dir()?;
-
-    // Concatenate the file path to the current working directory
-    let full_path = current_dir.join(path);
-
-    // Create the directory if it doesn't exist
-    if let Some(parent) = full_path.parent() {
-        create_dir_all(parent)?;
-    }
-
-    // Convert the path to a PathBuf
-    let mut file_path = PathBuf::new();
-    file_path.push(full_path);
-
-    // Create a file at the specified path
-    let mut file = File::create(&file_path)?;
-
-    // Write the image data to the file
-    file.write_all(image_data)?;
-
-    Ok(())
-}
+use utils::{max_lengths_per_column, save_image_to_file, serialize_images, table_row_to_markdown};
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BlockStyle {
+    /// Use bold
     pub bold: bool,
+    /// Use italics
     pub italics: bool,
+    /// Use underline
     pub underline: bool,
+    /// Use strikethrough
     pub strike: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// Size is specified in points x 2, so size 19 is equal to 9.5pt
     pub size: Option<isize>,
 }
@@ -88,19 +66,31 @@ impl BlockStyle {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+
 pub struct MarkdownNumbering {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<isize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub indent_level: Option<isize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>, // NumberFormat
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub level_text: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ParagraphStyle {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub style_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub outline_lvl: Option<isize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub numbering: Option<MarkdownNumbering>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub page_break_before: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub style: Option<BlockStyle>,
 }
 
@@ -200,8 +190,10 @@ pub enum TextType {
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TextBlock {
     pub text_type: TextType,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub style: Option<BlockStyle>,
     pub text: String,
 }
@@ -253,6 +245,7 @@ impl TextBlock {
 
 #[derive(Debug, Serialize)]
 pub struct MarkdownParagraph {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub style: Option<ParagraphStyle>,
     pub blocks: Vec<TextBlock>,
 }
@@ -462,17 +455,26 @@ impl MarkdownParagraph {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MarkdownDocument {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub creator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_editor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub company: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keywords: Option<String>,
     pub content: Vec<MarkdownContent>,
     pub styles: HashMap<String, ParagraphStyle>,
     pub numberings: HashMap<isize, MarkdownNumbering>,
+    #[serde(serialize_with = "serialize_images")]
     pub images: HashMap<String, Vec<u8>>,
 }
 
@@ -665,9 +667,12 @@ impl MarkdownDocument {
         markdown_doc
     }
 
-    pub fn to_json(&self) -> String {
-        let json = serde_json::to_string(self).expect("Serialization failed");
-        json
+    pub fn to_json(&self, pretty: bool) -> String {
+        if pretty {
+            serde_json::to_string_pretty(self).expect("Serialization failed")
+        } else {
+            serde_json::to_string(self).expect("Serialization failed")
+        }
     }
 
     pub fn to_markdown(&self, export_images: bool) -> String {
@@ -767,6 +772,7 @@ impl MarkdownDocument {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum MarkdownContent {
     Paragraph(MarkdownParagraph),
     Table(MarkdownTable),
@@ -775,6 +781,7 @@ pub enum MarkdownContent {
 pub type MarkdownTable = Vec<MarkdownTableRow>;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MarkdownTableRow {
     is_header: bool,
     cells: Vec<MarkdownTableCell>,

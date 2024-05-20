@@ -1,6 +1,6 @@
 use clap::{command, Parser};
 use docx_parser::MarkdownDocument;
-use std::{fs, path::PathBuf};
+use std::fs;
 
 #[derive(Parser)]
 #[command(name = "docx-parser")]
@@ -9,8 +9,9 @@ use std::{fs, path::PathBuf};
 #[command(about = "Processes a DOCX file and outputs as Markdown or JSON", long_about = None)]
 struct Cli {
     /// The input DOCX file
-    #[arg(short, long, value_name = "FILE", required = true)]
-    input: PathBuf,
+    // #[arg(short, long, value_name = "FILE", required = true)]
+    #[arg(value_name = "FILE", index = 1)]
+    input: String,
 
     /// Sets the output destination. Default is console.
     #[arg(short, long)]
@@ -33,7 +34,7 @@ fn main() {
 
     let format = match cli.format {
         Some(format) => {
-            if format == "json" || format == "md" {
+            if format == "json" || format == "md" || format == "pretty_json" {
                 format
             } else {
                 "md".to_string()
@@ -42,17 +43,17 @@ fn main() {
         None => "md".to_string(),
     };
 
-    if format != "md" && format != "json" {
+    if format != "md" && format != "json" && format != "pretty_json" {
         eprintln!(
-            "Unsupported format: {}. Supported formats are md and json.",
+            "Unsupported format: {}. Supported formats are md, json and pretty_json.",
             format
         );
         std::process::exit(1);
     }
 
-    let mut input_file = cli.input.to_string_lossy().trim().to_string();
+    let mut input_file = cli.input.trim().to_string();
 
-    if !input_file.ends_with(".docx") {
+    if !input_file.to_lowercase().ends_with(".docx") {
         input_file = format!("{}.docx", input_file);
     }
 
@@ -71,8 +72,10 @@ fn main() {
     let markdown_doc = MarkdownDocument::from_file(input_file);
     let result = if format == "md" {
         markdown_doc.to_markdown(true)
+    } else if format == "json" {
+        markdown_doc.to_json(false)
     } else {
-        markdown_doc.to_json()
+        markdown_doc.to_json(true)
     };
     if output == "console" {
         println!("{result}");
