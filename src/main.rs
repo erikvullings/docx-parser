@@ -4,7 +4,7 @@ use std::fs;
 
 #[derive(Parser)]
 #[command(name = "docx-parser")]
-#[command(version = "0.1.0")]
+#[command(version = "0.1.1")]
 #[command(author = "Erik Vullings <erik.vullings@gmail.com>")]
 #[command(about = "Processes a DOCX file and outputs as Markdown or JSON", long_about = None)]
 struct Cli {
@@ -17,7 +17,7 @@ struct Cli {
     #[arg(short, long)]
     output: Option<String>,
 
-    /// Sets the output format. Default is markdown. Options: md, json.
+    /// Sets the output format. Default is markdown. Options: md, json, and pretty_json.
     #[arg(short, long)]
     format: Option<String>,
 }
