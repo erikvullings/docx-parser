@@ -1,6 +1,6 @@
 [package]
 name = "docx-parser"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Erik Vullings <erik.vullings@gmail.com>"]
 description = "Parse Word and OpenOffice DOCX files, and output markdown or JSON"
