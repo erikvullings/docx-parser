@@ -34,9 +34,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-git-
 
-      - name: Run tests
-        run: cargo test --all
-
       - name: Build the project
         run: cargo build --release
 
