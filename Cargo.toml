@@ -4,7 +4,11 @@ version = "0.1.1"
 edition = "2021"
 authors = ["Erik Vullings <erik.vullings@gmail.com>"]
 description = "Parse Word and OpenOffice DOCX files, and output markdown or JSON"
-license = "MIT/Apache-2.0"
+license = "MIT or Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/erikvullings/docx-parser"
+keywords = ["docx", "markdown", "openoffice", "parser"]
+categories = ["command-line-utilities", "encoding"]
 
 [dependencies]
 base64 = "0.22.1"
