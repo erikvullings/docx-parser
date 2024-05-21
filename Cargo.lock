@@ -138,9 +138,9 @@ checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
 name = "crc32fast"
-version = "1.4.0"
+version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3855a8a784b474f333699ef2bbca9db2c4a1f6d9088a90a2d25b1eb53111eaa"
+checksum = "a97769d94ddab943e4510d138150169a2758b5ef3eb191a9ee688de3e23ef7b3"
 dependencies = [
  "cfg-if",
 ]
@@ -199,8 +199,9 @@ dependencies = [
 
 [[package]]
 name = "docx-rust"
-version = "0.1.7"
-source = "git+https://github.com/erikvullings/docx-rs.git#de166204f78b51c9051bb7e9d79006ecbdabf223"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21507309413f0ba54ec1f2beeda534d116d3db94bffea9c18991bea116f3e522"
 dependencies = [
  "derive_more",
  "hard-xml",
